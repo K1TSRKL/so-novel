@@ -131,7 +131,13 @@ public class SourceUtils {
         if (cachedActivatedRules != null) {
             return cachedActivatedRules;
         }
-        cachedActivatedRules = loadRulesFromPath(getActiveRulesPath());
+        List<Rule> merged = new ArrayList<>();
+        for (String path : getActiveRulesPaths()) {
+            merged.addAll(loadRulesFromPath(path));
+        }
+        // 合并后重新编号，避免不同文件的 ID 重复
+        IntStream.range(0, merged.size()).forEach(i -> merged.get(i).setId(i + 1));
+        cachedActivatedRules = merged;
         return cachedActivatedRules;
     }
 
@@ -149,12 +155,11 @@ public class SourceUtils {
     /**
      * 获取激活规则文件路径
      */
-    private String getActiveRulesPath() {
-        Path path = Paths.get(APP_CONFIG.getActiveRules());
-        if (path.isAbsolute()) {
-            return path.toString();
-        }
-        return (EnvUtils.isDev() ? RULES_DIR_DEV : RULES_DIR_PROD) + APP_CONFIG.getActiveRules();
+    private List<String> getActiveRulesPaths() {
+        String baseDir = EnvUtils.isDev() ? RULES_DIR_DEV : RULES_DIR_PROD;
+        return StrUtil.splitTrim(APP_CONFIG.getActiveRules(), ',').stream()
+            .map(s -> Paths.get(s).isAbsolute() ? s : baseDir + s)
+            .toList();
     }
 
     /**
